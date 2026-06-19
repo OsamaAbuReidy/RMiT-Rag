@@ -77,3 +77,65 @@ def test_chunk_pages_attaches_outline_metadata() -> None:
     assert chunks[0]["outline_title"] == outlines[0]["title"]
     assert chunks[0]["outline_level"] == 3
     assert chunks[0]["outline_page_number"] == 21
+
+
+def test_rmit_appendix_does_not_bleed_into_last_clause() -> None:
+    pages = [
+        {
+            "document": "rmit",
+            "source_file": "sample.pdf",
+            "page_number": 40,
+            "text": "\n".join(
+                [
+                    "## **PART C REGULATORY PROCESS**",
+                    "## **18 Assessment and Gap Analysis**",
+                    "- **S** 18.2 The self-assessment must be submitted to the Bank.",
+                ]
+            ),
+        },
+        {
+            "document": "rmit",
+            "source_file": "sample.pdf",
+            "page_number": 41,
+            "text": "\n".join(
+                [
+                    "## **Appendix 1 Storage and Transportation of Sensitive Data in Removable Media**",
+                    "Financial institutions must ensure adequate controls.",
+                    "1. deploying encryption techniques;",
+                    "2. implementing authorised access control;",
+                ]
+            ),
+        },
+    ]
+
+    chunks = chunk_pages(pages)
+
+    assert chunks[0]["clause"] == "18.2"
+    assert "Appendix 1" not in chunks[0]["text"]
+    assert chunks[1]["appendix"] == "Appendix 1 Storage and Transportation of Sensitive Data in Removable Media"
+    assert chunks[2]["item"] == "1"
+    assert chunks[3]["item"] == "2"
+
+
+def test_chunk_ids_are_unique_when_appendix_items_repeat() -> None:
+    pages = [
+        {
+            "document": "rmit",
+            "source_file": "sample.pdf",
+            "page_number": 42,
+            "text": "\n".join(
+                [
+                    "## **Appendix 2 Control Measures on Self-service Terminals (SSTs)**",
+                    "## **Cash SST**",
+                    "1. first cash item",
+                    "## **Non-Cash SST**",
+                    "1. first non-cash item",
+                ]
+            ),
+        }
+    ]
+
+    chunks = chunk_pages(pages)
+    ids = [chunk["id"] for chunk in chunks]
+
+    assert len(ids) == len(set(ids))

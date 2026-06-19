@@ -17,8 +17,10 @@ CONTENT_START_PAGES = {
 CLAUSE_RE = re.compile(
     r"^\s*-\s+(?:(?:\*\*)?(?P<inline_tag>[SG])(?:\*\*)?\s+)?(?P<clause>\d+[A-Z]?(?:\.\d+[A-Z]?)+)\s+(?P<text>.*)$"
 )
+APPENDIX_ITEM_RE = re.compile(r"^\s*(?P<item>\d+)\.\s+(?P<text>.+)$")
 STANDALONE_TAG_RE = re.compile(r"^\s*(?:-\s*)?\*\*(?P<tag>[SG])\*\*\s*$")
 HEADING_RE = re.compile(r"^\s*#{1,6}\s+(?P<title>.+?)\s*$")
+BOLD_SECTION_RE = re.compile(r"^\s*\*\*(?P<title>\d+[A-Z]?\s+.+?)\*\*\s*$")
 PAGE_END_RE = re.compile(r"^-{3}\s+end of page\.page_number=\d+\s+-{3}$", re.IGNORECASE)
 PAGE_NUMBER_RE = re.compile(r"^\d+\s+of\s+\d+\s*$", re.IGNORECASE)
 BNM_REF_RE = re.compile(r"^BNM/RH/PD\s+\d+-\d+\s*$", re.IGNORECASE)
@@ -42,11 +44,30 @@ def clean_heading(raw: str) -> str:
     return re.sub(r"\s+", " ", title).strip()
 
 
+def classify_heading(title: str) -> tuple[str, str | None]:
+    normalized = clean_heading(title)
+    if normalized.upper().startswith("PART "):
+        return "part", normalized
+    if normalized.upper().startswith("APPENDIX "):
+        return "appendix", normalized
+    if re.match(r"^\d+[A-Z]?\s+", normalized):
+        return "section", normalized
+    return "subheading", normalized
+
+
 def is_noise_line(line: str) -> bool:
     stripped = line.strip()
     if not stripped:
         return True
     if stripped.startswith("**==> picture"):
+        return True
+    if stripped == "Risk Management in Technology":
+        return True
+    if stripped.startswith(
+        "Anti-Money Laundering, Countering Financing of Terrorism, Countering Proliferation Financing"
+    ):
+        return True
+    if stripped == "The rest of the page is intentionally left as blank":
         return True
     if PAGE_END_RE.match(stripped):
         return True
@@ -73,9 +94,20 @@ def build_outline_clause_index(outlines: list[dict]) -> dict[tuple[str, str], di
 def chunk_pages(pages: list[dict], outlines: list[dict] | None = None) -> list[dict]:
     chunks: list[dict] = []
     outline_clause_index = build_outline_clause_index(outlines or [])
-    current_heading_by_doc: dict[str, str | None] = {}
+    current_part_by_doc: dict[str, str | None] = {}
+    current_section_by_doc: dict[str, str | None] = {}
+    current_subheading_by_doc: dict[str, str | None] = {}
+    current_appendix_by_doc: dict[str, str | None] = {}
     pending_tag_by_doc: dict[str, str | None] = {}
     current_chunk: dict | None = None
+    id_counts: dict[str, int] = {}
+
+    def reserve_id(base_id: str) -> str:
+        count = id_counts.get(base_id, 0)
+        id_counts[base_id] = count + 1
+        if count == 0:
+            return base_id
+        return f"{base_id}_{count + 1}"
 
     def flush_current() -> None:
         nonlocal current_chunk
@@ -83,6 +115,7 @@ def chunk_pages(pages: list[dict], outlines: list[dict] | None = None) -> list[d
             return
         current_chunk["text"] = "\n".join(current_chunk.pop("_text_lines")).strip()
         if current_chunk["text"]:
+            current_chunk["id"] = reserve_id(current_chunk["id"])
             chunks.append(current_chunk)
         current_chunk = None
 
@@ -93,7 +126,10 @@ def chunk_pages(pages: list[dict], outlines: list[dict] | None = None) -> list[d
             continue
 
         source_file = page["source_file"]
-        current_heading_by_doc.setdefault(document, None)
+        current_part_by_doc.setdefault(document, None)
+        current_section_by_doc.setdefault(document, None)
+        current_subheading_by_doc.setdefault(document, None)
+        current_appendix_by_doc.setdefault(document, None)
         pending_tag_by_doc.setdefault(document, None)
 
         for line in (page.get("text") or "").splitlines():
@@ -101,8 +137,69 @@ def chunk_pages(pages: list[dict], outlines: list[dict] | None = None) -> list[d
                 continue
 
             heading_match = HEADING_RE.match(line)
-            if heading_match:
-                current_heading_by_doc[document] = clean_heading(heading_match.group("title"))
+            bold_section_match = BOLD_SECTION_RE.match(line)
+            if heading_match or bold_section_match:
+                raw_heading = (
+                    heading_match.group("title")
+                    if heading_match
+                    else bold_section_match.group("title")
+                )
+                heading_type, heading = classify_heading(raw_heading)
+                if heading_type in {"part", "appendix", "section"}:
+                    flush_current()
+                if heading_type == "part":
+                    current_part_by_doc[document] = heading
+                    current_section_by_doc[document] = None
+                    current_subheading_by_doc[document] = None
+                    current_appendix_by_doc[document] = None
+                elif heading_type == "appendix":
+                    current_part_by_doc[document] = "APPENDICES"
+                    current_appendix_by_doc[document] = heading
+                    current_section_by_doc[document] = None
+                    current_subheading_by_doc[document] = None
+                    current_chunk = {
+                        "id": f"{document}_appendix_{len(chunks) + 1}",
+                        "document": document,
+                        "source_file": source_file,
+                        "page_number": page_number,
+                        "part": current_part_by_doc[document],
+                        "section_title": None,
+                        "subheading": None,
+                        "appendix": heading,
+                        "clause": None,
+                        "tag": None,
+                        "item": None,
+                        "outline_title": None,
+                        "outline_level": None,
+                        "outline_page_number": None,
+                        "_text_lines": [heading],
+                    }
+                elif heading_type == "section":
+                    current_section_by_doc[document] = heading
+                    current_subheading_by_doc[document] = None
+                else:
+                    if current_appendix_by_doc[document]:
+                        flush_current()
+                        current_subheading_by_doc[document] = heading
+                        current_chunk = {
+                            "id": f"{document}_appendix_{len(chunks) + 1}",
+                            "document": document,
+                            "source_file": source_file,
+                            "page_number": page_number,
+                            "part": current_part_by_doc[document],
+                            "section_title": None,
+                            "subheading": heading,
+                            "appendix": current_appendix_by_doc[document],
+                            "clause": None,
+                            "tag": None,
+                            "item": None,
+                            "outline_title": None,
+                            "outline_level": None,
+                            "outline_page_number": None,
+                            "_text_lines": [heading],
+                        }
+                    else:
+                        current_subheading_by_doc[document] = heading
                 continue
 
             tag_match = STANDALONE_TAG_RE.match(line)
@@ -123,13 +220,41 @@ def chunk_pages(pages: list[dict], outlines: list[dict] | None = None) -> list[d
                     "document": document,
                     "source_file": source_file,
                     "page_number": page_number,
-                    "section_title": current_heading_by_doc[document],
+                    "part": current_part_by_doc[document],
+                    "section_title": current_section_by_doc[document],
+                    "subheading": current_subheading_by_doc[document],
+                    "appendix": current_appendix_by_doc[document],
                     "clause": clause,
                     "tag": tag,
+                    "item": None,
                     "outline_title": outline["title"] if outline else None,
                     "outline_level": outline["level"] if outline else None,
                     "outline_page_number": outline["page_number"] if outline else None,
                     "_text_lines": [f"{tag + ' ' if tag else ''}{clause} {clause_match.group('text')}".strip()],
+                }
+                continue
+
+            appendix_item_match = APPENDIX_ITEM_RE.match(line)
+            if current_appendix_by_doc[document] and appendix_item_match:
+                flush_current()
+                item = appendix_item_match.group("item")
+                appendix_slug = re.sub(r"\W+", "_", current_appendix_by_doc[document].lower()).strip("_")
+                current_chunk = {
+                    "id": f"{document}_{appendix_slug}_item_{item}",
+                    "document": document,
+                    "source_file": source_file,
+                    "page_number": page_number,
+                    "part": current_part_by_doc[document],
+                    "section_title": None,
+                    "subheading": current_subheading_by_doc[document],
+                    "appendix": current_appendix_by_doc[document],
+                    "clause": None,
+                    "tag": None,
+                    "item": item,
+                    "outline_title": None,
+                    "outline_level": None,
+                    "outline_page_number": None,
+                    "_text_lines": [f"{item}. {appendix_item_match.group('text')}"],
                 }
                 continue
 
