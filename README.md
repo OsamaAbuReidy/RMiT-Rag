@@ -1,6 +1,6 @@
 # BNM Compliance Onboarding Assistant
 
-A portfolio RAG project for answering onboarding questions about selected Bank Negara Malaysia regulatory documents, starting with RMiT and AML/CFT.
+A portfolio RAG project for answering onboarding questions about selected Bank Negara Malaysia regulatory documents, starting with RMiT and AML/CFT/CPF/TFS for financial institutions.
 
 The initial implementation focus is:
 
@@ -11,27 +11,28 @@ The initial implementation focus is:
 5. Repeatable evaluation and CI gates.
 
 See [implementation_plan.md](implementation_plan.md) for the full project plan.
+See [docs/source_documents.md](docs/source_documents.md) for the v1 source document register.
 
 ## Project Structure
 
 ```text
 .
-├── data/
-│   ├── raw/              # Source PDFs, not committed by default
-│   └── processed/        # Parsed chunks and generated indexes, not committed by default
-├── docs/                 # Architecture, operations, and handover docs
-├── src/
-│   └── bnm_compliance_assistant/
-│       ├── api/          # FastAPI application and routes
-│       ├── config/       # Runtime settings
-│       ├── evaluation/   # Golden-set and adversarial evaluation
-│       ├── ingestion/    # PDF parsing and chunk creation
-│       ├── orchestration/# LangGraph workflow
-│       ├── retrieval/    # Dense, sparse, and hybrid retrieval
-│       └── verification/ # Groundedness and S/G checks
-└── tests/                # Unit and integration tests
++-- data/
+|   +-- raw/              # Source PDFs, not committed by default
+|   +-- processed/        # Parsed chunks and generated indexes, not committed by default
++-- docs/                 # Architecture, operations, source register, and handover docs
++-- src/
+|   +-- bnm_compliance_assistant/
+|       +-- api/          # FastAPI application and routes
+|       +-- config/       # Runtime settings
+|       +-- evaluation/   # Golden-set and adversarial evaluation
+|       +-- ingestion/    # PDF parsing and chunk creation
+|       +-- orchestration/# LangGraph workflow
+|       +-- retrieval/    # Dense, sparse, and hybrid retrieval
+|       +-- verification/ # Groundedness and S/G checks
++-- tests/                # Unit and integration tests
 ```
 
 ## Current Status
 
-Repository scaffolding is in place. Implementation starts with ingestion and retrieval.
+Repository scaffolding is in place. The v1 source PDFs are stored locally in `data/raw/`. Implementation starts with ingestion and retrieval.
