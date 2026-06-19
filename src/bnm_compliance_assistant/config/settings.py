@@ -15,6 +15,8 @@ class Settings(BaseSettings):
     gemini_embedding_dimensions: int = 1536
     qdrant_url: str = "http://localhost:6333"
     qdrant_collection: str = "bnm_compliance_chunks"
+    reranker_model: str = "cross-encoder/ms-marco-MiniLM-L-6-v2"
+    reranker_candidate_count: int = 20
     app_env: str = "local"
     log_level: str = "INFO"
 

@@ -62,7 +62,7 @@ python -m bnm_compliance_assistant.retrieval.bm25 "service availability downtime
 Run BM25 retrieval smoke evaluation:
 
 ```powershell
-python -m bnm_compliance_assistant.retrieval.evaluate_bm25 --top-k 3 --fail-under 1.0
+python -m bnm_compliance_assistant.retrieval.evaluate_bm25 --top-k 3
 ```
 
 Start Qdrant:
@@ -104,5 +104,17 @@ python -m bnm_compliance_assistant.retrieval.hybrid "service availability downti
 Run hybrid retrieval smoke evaluation:
 
 ```powershell
-python -m bnm_compliance_assistant.retrieval.evaluate_hybrid --top-k 3 --fail-under 1.0
+python -m bnm_compliance_assistant.retrieval.evaluate_hybrid --top-k 3
+```
+
+Search chunks with hybrid retrieval plus local cross-encoder reranking:
+
+```powershell
+python -m bnm_compliance_assistant.retrieval.rerank "what should banks do when online banking is partially down" --top-k 3
+```
+
+Run reranked retrieval smoke evaluation:
+
+```powershell
+python -m bnm_compliance_assistant.retrieval.evaluate_rerank --top-k 3 --fail-under 1.0
 ```
