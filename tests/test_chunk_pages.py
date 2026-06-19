@@ -139,3 +139,60 @@ def test_chunk_ids_are_unique_when_appendix_items_repeat() -> None:
     ids = [chunk["id"] for chunk in chunks]
 
     assert len(ids) == len(set(ids))
+
+
+def test_repeated_clause_line_after_tag_header_is_merged() -> None:
+    pages = [
+        {
+            "document": "amlcft_fi",
+            "source_file": "sample.pdf",
+            "page_number": 22,
+            "text": "\n".join(
+                [
+                    "## **PART B AML/CFT/CPF/TFS REQUIREMENTS**",
+                    "## **10 Application of Risk-Based Approach**",
+                    "## **10.3 ML/TF Risk Control and Mitigation**",
+                    "- **S** 10.3.2",
+                    "   - 10.3.2 Reporting institutions shall conduct independent control testing.",
+                ]
+            ),
+        }
+    ]
+
+    chunks = chunk_pages(pages)
+
+    assert len(chunks) == 1
+    assert chunks[0]["clause"] == "10.3.2"
+    assert chunks[0]["tag"] == "S"
+    assert chunks[0]["text"] == (
+        "S 10.3.2 Reporting institutions shall conduct independent control testing."
+    )
+
+
+def test_tag_header_skips_repeated_previous_clause_before_target_body() -> None:
+    pages = [
+        {
+            "document": "amlcft_fi",
+            "source_file": "sample.pdf",
+            "page_number": 29,
+            "text": "\n".join(
+                [
+                    "- **G** 11.5.5 Previous guidance text.",
+                    "- **S** 11.5.6",
+                    "   - 11.5.5 Previous guidance text.",
+                    "   - 11.5.6 Reporting institutions shall maintain comprehensive records.",
+                ]
+            ),
+        }
+    ]
+
+    chunks = chunk_pages(pages)
+
+    assert len(chunks) == 2
+    assert chunks[0]["clause"] == "11.5.5"
+    assert chunks[0]["tag"] == "G"
+    assert chunks[1]["clause"] == "11.5.6"
+    assert chunks[1]["tag"] == "S"
+    assert chunks[1]["text"] == (
+        "S 11.5.6 Reporting institutions shall maintain comprehensive records."
+    )

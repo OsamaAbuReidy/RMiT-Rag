@@ -15,7 +15,7 @@ CONTENT_START_PAGES = {
 }
 
 CLAUSE_RE = re.compile(
-    r"^\s*-\s+(?:(?:\*\*)?(?P<inline_tag>[SG])(?:\*\*)?\s+)?(?P<clause>\d+[A-Z]?(?:\.\d+[A-Z]?)+)\s+(?P<text>.*)$"
+    r"^\s*-\s+(?:(?:\*\*(?P<bold_tag>[SG])\*\*|(?P<plain_tag>[SG]))\s+)?(?P<clause>\d+[A-Z]?(?:\.\d+[A-Z]?)+)\s*(?P<text>.*)$"
 )
 APPENDIX_ITEM_RE = re.compile(r"^\s*(?P<item>\d+)\.\s+(?P<text>.+)$")
 STANDALONE_TAG_RE = re.compile(r"^\s*(?:-\s*)?\*\*(?P<tag>[SG])\*\*\s*$")
@@ -101,6 +101,7 @@ def chunk_pages(pages: list[dict], outlines: list[dict] | None = None) -> list[d
     pending_tag_by_doc: dict[str, str | None] = {}
     current_chunk: dict | None = None
     id_counts: dict[str, int] = {}
+    emitted_clause_keys: set[tuple[str, str]] = set()
 
     def reserve_id(base_id: str) -> str:
         count = id_counts.get(base_id, 0)
@@ -117,7 +118,19 @@ def chunk_pages(pages: list[dict], outlines: list[dict] | None = None) -> list[d
         if current_chunk["text"]:
             current_chunk["id"] = reserve_id(current_chunk["id"])
             chunks.append(current_chunk)
+            if current_chunk.get("clause"):
+                emitted_clause_keys.add((current_chunk["document"], current_chunk["clause"]))
         current_chunk = None
+
+    def current_chunk_is_tag_only_clause() -> bool:
+        if current_chunk is None or not current_chunk.get("clause"):
+            return False
+        clause = current_chunk["clause"]
+        tag = current_chunk.get("tag")
+        return (
+            len(current_chunk["_text_lines"]) == 1
+            and current_chunk["_text_lines"][0].strip() in {clause, f"{tag} {clause}"}
+        )
 
     for page in pages:
         document = page["document"]
@@ -209,11 +222,38 @@ def chunk_pages(pages: list[dict], outlines: list[dict] | None = None) -> list[d
 
             clause_match = CLAUSE_RE.match(line)
             if clause_match:
+                clause = clause_match.group("clause")
+                clause_text = clause_match.group("text")
+                if (
+                    current_chunk is not None
+                    and current_chunk["document"] == document
+                    and current_chunk.get("clause") == clause
+                    and current_chunk_is_tag_only_clause()
+                ):
+                    current_chunk["_text_lines"] = [
+                        f"{current_chunk.get('tag') + ' ' if current_chunk.get('tag') else ''}{clause} {clause_text}".strip()
+                    ]
+                    continue
+
+                inline_tag = clause_match.group("bold_tag") or clause_match.group("plain_tag")
+                if (
+                    current_chunk_is_tag_only_clause()
+                    and current_chunk is not None
+                    and current_chunk.get("clause") != clause
+                    and not inline_tag
+                ):
+                    continue
+
+                if (
+                    (document, clause) in emitted_clause_keys
+                    and pending_tag_by_doc[document]
+                    and not inline_tag
+                ):
+                    continue
+
                 flush_current()
-                inline_tag = clause_match.group("inline_tag")
                 tag = inline_tag or pending_tag_by_doc[document]
                 pending_tag_by_doc[document] = None
-                clause = clause_match.group("clause")
                 outline = outline_clause_index.get((document, clause))
                 current_chunk = {
                     "id": f"{document}_p{page_number}_c{clause.replace('.', '_')}",
