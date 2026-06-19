@@ -6,6 +6,7 @@ import re
 
 
 INPUT_PATH = Path("data/processed/pages.jsonl")
+OUTLINE_INPUT_PATH = Path("data/processed/outlines.jsonl")
 OUTPUT_PATH = Path("data/processed/chunks.jsonl")
 
 CONTENT_START_PAGES = {
@@ -58,8 +59,20 @@ def is_noise_line(line: str) -> bool:
     return False
 
 
-def chunk_pages(pages: list[dict]) -> list[dict]:
+def build_outline_clause_index(outlines: list[dict]) -> dict[tuple[str, str], dict]:
+    clause_index = {}
+    for outline in outlines:
+        clause = outline.get("clause")
+        if not clause:
+            continue
+        key = (outline["document"], clause)
+        clause_index.setdefault(key, outline)
+    return clause_index
+
+
+def chunk_pages(pages: list[dict], outlines: list[dict] | None = None) -> list[dict]:
     chunks: list[dict] = []
+    outline_clause_index = build_outline_clause_index(outlines or [])
     current_heading_by_doc: dict[str, str | None] = {}
     pending_tag_by_doc: dict[str, str | None] = {}
     current_chunk: dict | None = None
@@ -104,6 +117,7 @@ def chunk_pages(pages: list[dict]) -> list[dict]:
                 tag = inline_tag or pending_tag_by_doc[document]
                 pending_tag_by_doc[document] = None
                 clause = clause_match.group("clause")
+                outline = outline_clause_index.get((document, clause))
                 current_chunk = {
                     "id": f"{document}_p{page_number}_c{clause.replace('.', '_')}",
                     "document": document,
@@ -112,6 +126,9 @@ def chunk_pages(pages: list[dict]) -> list[dict]:
                     "section_title": current_heading_by_doc[document],
                     "clause": clause,
                     "tag": tag,
+                    "outline_title": outline["title"] if outline else None,
+                    "outline_level": outline["level"] if outline else None,
+                    "outline_page_number": outline["page_number"] if outline else None,
                     "_text_lines": [f"{tag + ' ' if tag else ''}{clause} {clause_match.group('text')}".strip()],
                 }
                 continue
@@ -125,7 +142,8 @@ def chunk_pages(pages: list[dict]) -> list[dict]:
 
 def main() -> None:
     pages = load_jsonl(INPUT_PATH)
-    chunks = chunk_pages(pages)
+    outlines = load_jsonl(OUTLINE_INPUT_PATH) if OUTLINE_INPUT_PATH.exists() else []
+    chunks = chunk_pages(pages, outlines)
     write_jsonl(chunks, OUTPUT_PATH)
     print(f"Wrote {len(chunks)} chunks to {OUTPUT_PATH}")
 

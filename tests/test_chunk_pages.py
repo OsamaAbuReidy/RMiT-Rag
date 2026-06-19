@@ -51,3 +51,29 @@ def test_chunk_pages_skips_document_preface_pages() -> None:
     assert len(chunks) == 1
     assert chunks[0]["document"] == "amlcft_fi"
     assert chunks[0]["page_number"] == 4
+
+
+def test_chunk_pages_attaches_outline_metadata() -> None:
+    pages = [
+        {
+            "document": "amlcft_fi",
+            "source_file": "sample.pdf",
+            "page_number": 21,
+            "text": "- **S** 10.2.1 Reporting institutions are required to assess risk.",
+        }
+    ]
+    outlines = [
+        {
+            "document": "amlcft_fi",
+            "clause": "10.2.1",
+            "title": "10.2.1 Reporting institutions are required to take appropriate steps.",
+            "level": 3,
+            "page_number": 21,
+        }
+    ]
+
+    chunks = chunk_pages(pages, outlines)
+
+    assert chunks[0]["outline_title"] == outlines[0]["title"]
+    assert chunks[0]["outline_level"] == 3
+    assert chunks[0]["outline_page_number"] == 21
