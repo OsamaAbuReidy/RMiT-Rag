@@ -8,7 +8,7 @@ from qdrant_client import QdrantClient
 
 from bnm_compliance_assistant.config.settings import settings
 from bnm_compliance_assistant.retrieval.bm25 import SearchResult
-from bnm_compliance_assistant.retrieval.embeddings import OpenAIEmbedder
+from bnm_compliance_assistant.retrieval.embeddings import OpenAIEmbedder, create_embedder
 
 
 @dataclass
@@ -21,7 +21,7 @@ class QdrantRetriever:
     def from_settings(cls) -> "QdrantRetriever":
         return cls(
             client=QdrantClient(url=settings.qdrant_url),
-            embedder=OpenAIEmbedder(),
+            embedder=create_embedder(),
             collection_name=settings.qdrant_collection,
         )
 

@@ -12,7 +12,12 @@ from bnm_compliance_assistant.retrieval.bm25 import (
     chunk_search_text,
     load_chunks,
 )
-from bnm_compliance_assistant.retrieval.embeddings import OpenAIEmbedder, batched
+from bnm_compliance_assistant.retrieval.embeddings import (
+    OpenAIEmbedder,
+    batched,
+    configured_embedding_dimensions,
+    create_embedder,
+)
 
 
 UPSERT_BATCH_SIZE = 64
@@ -91,14 +96,14 @@ def main() -> None:
     parser.add_argument(
         "--vector-size",
         type=int,
-        default=settings.openai_embedding_dimensions,
+        default=configured_embedding_dimensions(),
         help="Embedding vector size",
     )
     args = parser.parse_args()
 
     chunks = load_chunks(args.chunks)
     client = QdrantClient(url=args.qdrant_url)
-    embedder = OpenAIEmbedder(dimensions=args.vector_size)
+    embedder = create_embedder()
 
     index_chunks(
         client=client,

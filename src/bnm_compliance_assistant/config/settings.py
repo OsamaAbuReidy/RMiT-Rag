@@ -5,6 +5,15 @@ class Settings(BaseSettings):
     openai_api_key: str | None = None
     openai_embedding_model: str = "text-embedding-3-small"
     openai_embedding_dimensions: int = 1536
+    embedding_provider: str = "openai"
+    embedding_api_key: str | None = None
+    embedding_base_url: str | None = None
+    embedding_model: str = "text-embedding-3-small"
+    embedding_dimensions: int = 1536
+    deepseek_api_key: str | None = None
+    deepseek_base_url: str = "https://api.deepseek.com"
+    deepseek_embedding_model: str | None = None
+    deepseek_embedding_dimensions: int = 1536
     qdrant_url: str = "http://localhost:6333"
     qdrant_collection: str = "bnm_compliance_chunks"
     app_env: str = "local"
