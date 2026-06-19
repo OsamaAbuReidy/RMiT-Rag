@@ -36,3 +36,25 @@ See [docs/source_documents.md](docs/source_documents.md) for the v1 source docum
 ## Current Status
 
 Repository scaffolding is in place. The v1 source PDFs are stored locally in `data/raw/`. Implementation starts with ingestion and retrieval.
+
+## Local Commands
+
+Extract pages, outlines, and chunks:
+
+```powershell
+python -m bnm_compliance_assistant.ingestion.extract_pages
+python -m bnm_compliance_assistant.ingestion.extract_outlines
+python -m bnm_compliance_assistant.ingestion.chunk_pages
+```
+
+Inspect chunk quality:
+
+```powershell
+python -m bnm_compliance_assistant.ingestion.inspect_chunks
+```
+
+Search chunks with BM25:
+
+```powershell
+python -m bnm_compliance_assistant.retrieval.bm25 "service availability downtime" --top-k 3
+```
