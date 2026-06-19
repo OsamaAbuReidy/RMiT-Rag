@@ -17,6 +17,9 @@ class Settings(BaseSettings):
     qdrant_collection: str = "bnm_compliance_chunks"
     reranker_model: str = "cross-encoder/ms-marco-MiniLM-L-6-v2"
     reranker_candidate_count: int = 20
+    gemini_generation_model: str = "gemini-3.5-flash"
+    answer_top_k: int = 5
+    answer_max_output_tokens: int = 1600
     app_env: str = "local"
     log_level: str = "INFO"
 

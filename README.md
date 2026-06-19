@@ -118,3 +118,21 @@ Run reranked retrieval smoke evaluation:
 ```powershell
 python -m bnm_compliance_assistant.retrieval.evaluate_rerank --top-k 3 --fail-under 1.0
 ```
+
+Answer a question with reranked retrieval, Gemini generation, and citations:
+
+```powershell
+python -m bnm_compliance_assistant.answering.answer "what should banks do when online banking is partially down"
+```
+
+Run the API:
+
+```powershell
+uvicorn bnm_compliance_assistant.api.main:app --reload
+```
+
+Ask a question through the API:
+
+```powershell
+Invoke-RestMethod -Method Post -Uri http://127.0.0.1:8000/answer -ContentType "application/json" -Body '{"question":"what should banks do when online banking is partially down","top_k":5}'
+```
