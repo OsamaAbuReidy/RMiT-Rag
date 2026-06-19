@@ -58,3 +58,9 @@ Search chunks with BM25:
 ```powershell
 python -m bnm_compliance_assistant.retrieval.bm25 "service availability downtime" --top-k 3
 ```
+
+Run BM25 retrieval smoke evaluation:
+
+```powershell
+python -m bnm_compliance_assistant.retrieval.evaluate_bm25 --top-k 3 --fail-under 1.0
+```
