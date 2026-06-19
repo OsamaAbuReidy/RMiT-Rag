@@ -64,3 +64,27 @@ Run BM25 retrieval smoke evaluation:
 ```powershell
 python -m bnm_compliance_assistant.retrieval.evaluate_bm25 --top-k 3 --fail-under 1.0
 ```
+
+Start Qdrant:
+
+```powershell
+docker compose up -d qdrant
+```
+
+Index chunks into Qdrant. This requires `OPENAI_API_KEY` in `.env` or the shell environment:
+
+```powershell
+python -m bnm_compliance_assistant.retrieval.index_qdrant
+```
+
+Search chunks with dense retrieval:
+
+```powershell
+python -m bnm_compliance_assistant.retrieval.qdrant_search "service availability downtime" --top-k 3
+```
+
+Run Qdrant retrieval smoke evaluation:
+
+```powershell
+python -m bnm_compliance_assistant.retrieval.evaluate_qdrant --top-k 3
+```
