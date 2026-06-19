@@ -136,3 +136,9 @@ Ask a question through the API:
 ```powershell
 Invoke-RestMethod -Method Post -Uri http://127.0.0.1:8000/answer -ContentType "application/json" -Body '{"question":"what should banks do when online banking is partially down","top_k":5}'
 ```
+
+Run generated-answer smoke evaluation:
+
+```powershell
+python -m bnm_compliance_assistant.answering.evaluate_answers --top-k 5
+```
