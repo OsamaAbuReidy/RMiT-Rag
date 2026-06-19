@@ -94,3 +94,15 @@ Run Qdrant retrieval smoke evaluation:
 ```powershell
 python -m bnm_compliance_assistant.retrieval.evaluate_qdrant --top-k 3
 ```
+
+Search chunks with hybrid BM25 + Qdrant retrieval:
+
+```powershell
+python -m bnm_compliance_assistant.retrieval.hybrid "service availability downtime" --top-k 3
+```
+
+Run hybrid retrieval smoke evaluation:
+
+```powershell
+python -m bnm_compliance_assistant.retrieval.evaluate_hybrid --top-k 3 --fail-under 1.0
+```
