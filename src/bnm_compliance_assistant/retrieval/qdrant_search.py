@@ -8,13 +8,13 @@ from qdrant_client import QdrantClient
 
 from bnm_compliance_assistant.config.settings import settings
 from bnm_compliance_assistant.retrieval.bm25 import SearchResult
-from bnm_compliance_assistant.retrieval.embeddings import OpenAIEmbedder, create_embedder
+from bnm_compliance_assistant.retrieval.embeddings import OpenAIEmbedder, GeminiEmbedder, create_embedder
 
 
 @dataclass
 class QdrantRetriever:
     client: QdrantClient
-    embedder: OpenAIEmbedder
+    embedder: OpenAIEmbedder | GeminiEmbedder
     collection_name: str
 
     @classmethod

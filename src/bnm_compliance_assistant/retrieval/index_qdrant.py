@@ -12,12 +12,7 @@ from bnm_compliance_assistant.retrieval.bm25 import (
     chunk_search_text,
     load_chunks,
 )
-from bnm_compliance_assistant.retrieval.embeddings import (
-    OpenAIEmbedder,
-    batched,
-    configured_embedding_dimensions,
-    create_embedder,
-)
+from bnm_compliance_assistant.retrieval.embeddings import batched, configured_embedding_dimensions, create_embedder
 
 
 UPSERT_BATCH_SIZE = 64
@@ -73,7 +68,7 @@ def build_points(chunks: list[dict], vectors: list[list[float]]) -> list[models.
 
 def index_chunks(
     client: QdrantClient,
-    embedder: OpenAIEmbedder,
+    embedder,
     chunks: list[dict],
     collection_name: str,
     vector_size: int,

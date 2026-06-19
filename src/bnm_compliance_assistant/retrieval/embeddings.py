@@ -2,6 +2,8 @@ from __future__ import annotations
 
 from collections.abc import Iterable
 
+from google import genai
+from google.genai import types
 from openai import OpenAI
 
 from bnm_compliance_assistant.config.settings import settings
@@ -51,7 +53,45 @@ class OpenAIEmbedder:
         return self.embed_texts([query])[0]
 
 
-def create_embedder(batch_size: int = 64) -> OpenAIEmbedder:
+class GeminiEmbedder:
+    def __init__(
+        self,
+        api_key: str | None = None,
+        model: str | None = None,
+        dimensions: int | None = None,
+        batch_size: int = 16,
+    ) -> None:
+        resolved_api_key = api_key or settings.gemini_api_key
+        if not resolved_api_key:
+            raise ValueError("GEMINI_API_KEY is required when EMBEDDING_PROVIDER=gemini")
+
+        self.client = genai.Client(api_key=resolved_api_key)
+        self.model = model or settings.gemini_embedding_model
+        self.dimensions = dimensions or settings.gemini_embedding_dimensions
+        self.batch_size = batch_size
+
+    def _embed_one(self, text: str) -> list[float]:
+        response = self.client.models.embed_content(
+            model=self.model,
+            contents=text,
+            config=types.EmbedContentConfig(output_dimensionality=self.dimensions),
+        )
+        return list(response.embeddings[0].values)
+
+    def embed_texts(self, texts: list[str]) -> list[list[float]]:
+        if not texts:
+            return []
+
+        embeddings: list[list[float]] = []
+        for batch in batched(texts, self.batch_size):
+            embeddings.extend(self._embed_one(text) for text in batch)
+        return embeddings
+
+    def embed_query(self, query: str) -> list[float]:
+        return self.embed_texts([query])[0]
+
+
+def create_embedder(batch_size: int = 64) -> OpenAIEmbedder | GeminiEmbedder:
     provider = settings.embedding_provider.lower()
 
     if provider == "openai":
@@ -62,18 +102,11 @@ def create_embedder(batch_size: int = 64) -> OpenAIEmbedder:
             batch_size=batch_size,
         )
 
-    if provider == "deepseek":
-        if not settings.deepseek_embedding_model:
-            raise ValueError(
-                "DEEPSEEK_EMBEDDING_MODEL is required when EMBEDDING_PROVIDER=deepseek. "
-                "DeepSeek's official API docs currently list chat/reasoning models, so confirm "
-                "your account has an embeddings-compatible model before indexing."
-            )
-        return OpenAIEmbedder(
-            api_key=settings.deepseek_api_key,
-            base_url=settings.deepseek_base_url,
-            model=settings.deepseek_embedding_model,
-            dimensions=settings.deepseek_embedding_dimensions,
+    if provider == "gemini":
+        return GeminiEmbedder(
+            api_key=settings.gemini_api_key,
+            model=settings.gemini_embedding_model,
+            dimensions=settings.gemini_embedding_dimensions,
             batch_size=batch_size,
         )
 
@@ -87,7 +120,7 @@ def create_embedder(batch_size: int = 64) -> OpenAIEmbedder:
         )
 
     raise ValueError(
-        "Unsupported EMBEDDING_PROVIDER. Expected one of: openai, deepseek, openai_compatible"
+        "Unsupported EMBEDDING_PROVIDER. Expected one of: openai, gemini, openai_compatible"
     )
 
 
@@ -95,10 +128,10 @@ def configured_embedding_dimensions() -> int:
     provider = settings.embedding_provider.lower()
     if provider == "openai":
         return settings.openai_embedding_dimensions
-    if provider == "deepseek":
-        return settings.deepseek_embedding_dimensions
+    if provider == "gemini":
+        return settings.gemini_embedding_dimensions
     if provider == "openai_compatible":
         return settings.embedding_dimensions
     raise ValueError(
-        "Unsupported EMBEDDING_PROVIDER. Expected one of: openai, deepseek, openai_compatible"
+        "Unsupported EMBEDDING_PROVIDER. Expected one of: openai, gemini, openai_compatible"
     )

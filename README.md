@@ -71,17 +71,17 @@ Start Qdrant:
 docker compose up -d qdrant
 ```
 
-Index chunks into Qdrant. This requires `OPENAI_API_KEY` in `.env` or the shell environment:
+Index chunks into Qdrant. This requires an embedding provider API key in `.env` or the shell environment:
 
 ```powershell
 python -m bnm_compliance_assistant.retrieval.index_qdrant
 ```
 
+For Gemini, set `EMBEDDING_PROVIDER=gemini`, `GEMINI_API_KEY`,
+`GEMINI_EMBEDDING_MODEL`, and `GEMINI_EMBEDDING_DIMENSIONS`.
+
 For an OpenAI-compatible embeddings provider, set `EMBEDDING_PROVIDER=openai_compatible`,
 `EMBEDDING_API_KEY`, `EMBEDDING_BASE_URL`, `EMBEDDING_MODEL`, and `EMBEDDING_DIMENSIONS`.
-DeepSeek configuration is accepted with `EMBEDDING_PROVIDER=deepseek`, `DEEPSEEK_API_KEY`,
-`DEEPSEEK_BASE_URL`, `DEEPSEEK_EMBEDDING_MODEL`, and `DEEPSEEK_EMBEDDING_DIMENSIONS`, but
-confirm that your DeepSeek account exposes an embeddings-compatible model before indexing.
 
 Search chunks with dense retrieval:
 

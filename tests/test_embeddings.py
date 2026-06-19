@@ -13,16 +13,15 @@ def test_batched_rejects_invalid_batch_size() -> None:
         list(batched(["a"], 0))
 
 
-def test_configured_embedding_dimensions_for_deepseek(monkeypatch: pytest.MonkeyPatch) -> None:
-    monkeypatch.setattr(embeddings.settings, "embedding_provider", "deepseek")
-    monkeypatch.setattr(embeddings.settings, "deepseek_embedding_dimensions", 1024)
+def test_configured_embedding_dimensions_for_gemini(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setattr(embeddings.settings, "embedding_provider", "gemini")
+    monkeypatch.setattr(embeddings.settings, "gemini_embedding_dimensions", 1024)
 
     assert configured_embedding_dimensions() == 1024
 
 
-def test_deepseek_provider_requires_embedding_model(monkeypatch: pytest.MonkeyPatch) -> None:
-    monkeypatch.setattr(embeddings.settings, "embedding_provider", "deepseek")
-    monkeypatch.setattr(embeddings.settings, "deepseek_embedding_model", None)
+def test_gemini_provider_requires_api_key(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setattr(embeddings.settings, "gemini_api_key", None)
 
-    with pytest.raises(ValueError, match="DEEPSEEK_EMBEDDING_MODEL"):
-        embeddings.create_embedder()
+    with pytest.raises(ValueError, match="GEMINI_API_KEY"):
+        embeddings.GeminiEmbedder()
