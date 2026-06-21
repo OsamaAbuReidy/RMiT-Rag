@@ -1,0 +1,74 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>BNM Compliance Onboarding Assistant</title>
+    <link rel="stylesheet" href="/static/styles.css" />
+  </head>
+  <body>
+    <main class="app-shell">
+      <section class="workspace" aria-labelledby="app-title">
+        <header class="topbar">
+          <div>
+            <p class="eyebrow">RMiT + AML/CFT</p>
+            <h1 id="app-title">BNM Compliance Onboarding Assistant</h1>
+          </div>
+          <div class="status-pill" id="status-pill">Ready</div>
+        </header>
+
+        <form id="question-form" class="query-form">
+          <label for="question">Question</label>
+          <div class="query-row">
+            <textarea
+              id="question"
+              name="question"
+              rows="3"
+              maxlength="800"
+              placeholder="What should banks do when online banking is partially down?"
+              required
+            ></textarea>
+            <div class="control-stack">
+              <label for="top-k">Sources</label>
+              <input id="top-k" name="top-k" type="number" min="1" max="10" value="5" />
+              <button id="submit-button" type="submit">Ask</button>
+            </div>
+          </div>
+        </form>
+
+        <section class="answer-panel" aria-live="polite">
+          <div class="panel-header">
+            <h2>Answer</h2>
+            <span id="refusal-badge" class="badge hidden">Refused</span>
+          </div>
+          <div id="answer" class="answer-text muted">No answer yet.</div>
+        </section>
+
+        <section class="results-grid">
+          <div class="panel">
+            <div class="panel-header">
+              <h2>Citations</h2>
+              <span id="citation-count" class="count">0</span>
+            </div>
+            <div id="citations" class="list empty">No citations.</div>
+          </div>
+
+          <div class="panel">
+            <div class="panel-header">
+              <h2>Sources</h2>
+              <span id="source-count" class="count">0</span>
+            </div>
+            <div id="sources" class="list empty">No sources.</div>
+          </div>
+        </section>
+
+        <details class="json-panel">
+          <summary>JSON</summary>
+          <pre id="json-output">{}</pre>
+        </details>
+      </section>
+    </main>
+
+    <script src="/static/app.js"></script>
+  </body>
+</html>

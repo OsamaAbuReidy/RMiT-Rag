@@ -131,6 +131,12 @@ Run the API:
 uvicorn bnm_compliance_assistant.api.main:app --reload
 ```
 
+Open the local UI:
+
+```text
+http://127.0.0.1:8000/
+```
+
 Ask a question through the API:
 
 ```powershell
