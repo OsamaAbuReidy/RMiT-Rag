@@ -1,150 +1,167 @@
 # BNM Compliance Onboarding Assistant
 
-A portfolio RAG project for answering onboarding questions about selected Bank Negara Malaysia regulatory documents, starting with RMiT and AML/CFT/CPF/TFS for financial institutions.
+[![CI](https://github.com/OsamaAbuReidy/RMiT-Rag/actions/workflows/ci.yml/badge.svg)](https://github.com/OsamaAbuReidy/RMiT-Rag/actions/workflows/ci.yml)
+[![License: MIT](https://img.shields.io/badge/License-MIT-green.svg)](LICENSE)
 
-The initial implementation focus is:
+A structure-aware retrieval-augmented generation (RAG) assistant for answering
+onboarding questions against selected Bank Negara Malaysia regulatory documents.
+The current corpus covers Risk Management in Technology (RMiT) and the
+AML/CFT/CPF/TFS policy document for financial institutions.
 
-1. Structure-aware ingestion from source PDFs.
-2. Hybrid retrieval using dense vectors plus BM25.
-3. Grounded answer generation with citations.
-4. Verification for citation support and Standard (S) versus Guidance (G) fidelity.
-5. Repeatable evaluation and CI gates.
+The project demonstrates the full path from irregular regulatory PDFs to grounded,
+cited answers: document-specific parsing, clause-aware chunking, hybrid retrieval,
+cross-encoder reranking, Gemini generation, validation, evaluation, and a small web UI.
 
-See [implementation_plan.md](implementation_plan.md) for the full project plan.
-See [docs/source_documents.md](docs/source_documents.md) for the v1 source document register.
+## Results
 
-## Project Structure
+Latest local evaluation on the committed smoke sets:
+
+| Check | Result |
+| --- | ---: |
+| Unit and API tests | 52 passed |
+| Ruff | All checks passed |
+| BM25 retrieval, top-1 | 77.78% (21/27) |
+| BM25 retrieval, top-3 | 85.19% (23/27) |
+| Reranked retrieval, top-1 | 85.19% (23/27) |
+| Reranked retrieval, top-3 | 100.00% (27/27) |
+| Grounded answer smoke evaluation | 100.00% (10/10) |
+
+These are small, project-specific smoke sets rather than production benchmarks. They
+are useful regression gates and expose the improvement from lexical retrieval to the
+reranked pipeline, but they do not establish production-grade accuracy.
+
+## Architecture
 
 ```text
-.
-+-- data/
-|   +-- raw/              # Source PDFs, not committed by default
-|   +-- processed/        # Parsed chunks and generated indexes, not committed by default
-+-- docs/                 # Architecture, operations, source register, and handover docs
-+-- src/
-|   +-- bnm_compliance_assistant/
-|       +-- api/          # FastAPI application and routes
-|       +-- config/       # Runtime settings
-|       +-- evaluation/   # Golden-set and adversarial evaluation
-|       +-- ingestion/    # PDF parsing and chunk creation
-|       +-- orchestration/# LangGraph workflow
-|       +-- retrieval/    # Dense, sparse, and hybrid retrieval
-|       +-- verification/ # Groundedness and S/G checks
-+-- tests/                # Unit and integration tests
+Regulatory PDFs
+      |
+      v
+PyMuPDF4LLM extraction -> outline metadata -> clause-aware chunks
+                                              |
+                         +--------------------+-------------------+
+                         |                                        |
+                         v                                        v
+                    BM25 index                         Gemini embeddings
+                                                              + Qdrant
+                         |                                        |
+                         +--------------------+-------------------+
+                                              v
+                                  weighted hybrid candidates
+                                              |
+                                              v
+                                local cross-encoder reranker
+                                              |
+                                              v
+                              evidence context + source metadata
+                                              |
+                                              v
+                                  Gemini grounded generation
+                                              |
+                                              v
+                                citation validation / refusal
+                                              |
+                                    +---------+---------+
+                                    |                   |
+                                    v                   v
+                               FastAPI API          Web UI / CLI
 ```
 
-## Current Status
+Key design decisions:
 
-Repository scaffolding is in place. The v1 source PDFs are stored locally in `data/raw/`. Implementation starts with ingestion and retrieval.
+- Chunk boundaries follow clauses and appendices instead of fixed token windows.
+- BM25 preserves exact clause and terminology lookup.
+- Qdrant provides dense semantic retrieval using Gemini embeddings.
+- A local cross-encoder reranks the top hybrid candidates without sending regulatory
+  text to another hosted reranking service.
+- Answers distinguish Standard (S) obligations from Guidance (G), cite retrieved
+  source IDs, and refuse when evidence is missing or citations fail validation.
 
-## Local Commands
+See [docs/architecture.md](docs/architecture.md) for component details and tradeoffs.
 
-Extract pages, outlines, and chunks:
+## Run Locally
+
+Prerequisites: Python 3.11+, Docker Desktop, a Gemini API key, and the two source PDFs
+listed in [docs/source_documents.md](docs/source_documents.md).
+
+```powershell
+git clone https://github.com/OsamaAbuReidy/RMiT-Rag.git
+cd RMiT-Rag
+python -m venv .venv
+.\.venv\Scripts\Activate.ps1
+python -m pip install -e ".[dev]"
+Copy-Item .env.example .env
+```
+
+Add `GEMINI_API_KEY` to `.env`, place the source PDFs in `data/raw/`, then prepare the
+corpus and index:
 
 ```powershell
 python -m bnm_compliance_assistant.ingestion.extract_pages
 python -m bnm_compliance_assistant.ingestion.extract_outlines
 python -m bnm_compliance_assistant.ingestion.chunk_pages
-```
-
-Inspect chunk quality:
-
-```powershell
-python -m bnm_compliance_assistant.ingestion.inspect_chunks
-```
-
-Search chunks with BM25:
-
-```powershell
-python -m bnm_compliance_assistant.retrieval.bm25 "service availability downtime" --top-k 3
-```
-
-Run BM25 retrieval smoke evaluation:
-
-```powershell
-python -m bnm_compliance_assistant.retrieval.evaluate_bm25 --top-k 3
-```
-
-Start Qdrant:
-
-```powershell
 docker compose up -d qdrant
-```
-
-Index chunks into Qdrant. This requires an embedding provider API key in `.env` or the shell environment:
-
-```powershell
 python -m bnm_compliance_assistant.retrieval.index_qdrant
 ```
 
-For Gemini, set `EMBEDDING_PROVIDER=gemini`, `GEMINI_API_KEY`,
-`GEMINI_EMBEDDING_MODEL`, and `GEMINI_EMBEDDING_DIMENSIONS`.
-
-For an OpenAI-compatible embeddings provider, set `EMBEDDING_PROVIDER=openai_compatible`,
-`EMBEDDING_API_KEY`, `EMBEDDING_BASE_URL`, `EMBEDDING_MODEL`, and `EMBEDDING_DIMENSIONS`.
-
-Search chunks with dense retrieval:
-
-```powershell
-python -m bnm_compliance_assistant.retrieval.qdrant_search "service availability downtime" --top-k 3
-```
-
-Run Qdrant retrieval smoke evaluation:
-
-```powershell
-python -m bnm_compliance_assistant.retrieval.evaluate_qdrant --top-k 3
-```
-
-Search chunks with hybrid BM25 + Qdrant retrieval:
-
-```powershell
-python -m bnm_compliance_assistant.retrieval.hybrid "service availability downtime" --top-k 3
-```
-
-Run hybrid retrieval smoke evaluation:
-
-```powershell
-python -m bnm_compliance_assistant.retrieval.evaluate_hybrid --top-k 3
-```
-
-Search chunks with hybrid retrieval plus local cross-encoder reranking:
-
-```powershell
-python -m bnm_compliance_assistant.retrieval.rerank "what should banks do when online banking is partially down" --top-k 3
-```
-
-Run reranked retrieval smoke evaluation:
-
-```powershell
-python -m bnm_compliance_assistant.retrieval.evaluate_rerank --top-k 3 --fail-under 1.0
-```
-
-Answer a question with reranked retrieval, Gemini generation, and citations:
-
-```powershell
-python -m bnm_compliance_assistant.answering.answer "what should banks do when online banking is partially down"
-```
-
-Run the API:
+Start the application:
 
 ```powershell
 uvicorn bnm_compliance_assistant.api.main:app --reload
 ```
 
-Open the local UI:
+Open `http://127.0.0.1:8000/`. The first reranked query may download the configured
+cross-encoder model from Hugging Face.
 
-```text
-http://127.0.0.1:8000/
-```
+Full operational commands and troubleshooting are in
+[docs/operations.md](docs/operations.md).
 
-Ask a question through the API:
-
-```powershell
-Invoke-RestMethod -Method Post -Uri http://127.0.0.1:8000/answer -ContentType "application/json" -Body '{"question":"what should banks do when online banking is partially down","top_k":5}'
-```
-
-Run generated-answer smoke evaluation:
+## Evaluation
 
 ```powershell
+python -m pytest
+python -m ruff check .
+python -m bnm_compliance_assistant.retrieval.evaluate_bm25 --top-k 3
+python -m bnm_compliance_assistant.retrieval.evaluate_rerank --top-k 3 --fail-under 1.0
 python -m bnm_compliance_assistant.answering.evaluate_answers --top-k 5
 ```
+
+The answer evaluation calls Gemini and can incur API usage. Retrieval cases are in
+`data/eval/retrieval_smoke.jsonl`; answer cases are in
+`data/eval/answer_smoke.jsonl`.
+
+## Repository Layout
+
+```text
+data/eval/                         committed retrieval and answer smoke sets
+data/raw/                          local source PDFs (not committed)
+data/processed/                    generated pages and chunks (not committed)
+docs/                              architecture, operations, and source register
+src/bnm_compliance_assistant/
+  answering/                       context building, Gemini generation, validation
+  api/                             FastAPI routes and static web UI
+  ingestion/                       extraction, outlines, and clause-aware chunking
+  retrieval/                       BM25, Qdrant, hybrid retrieval, and reranking
+tests/                             unit and API tests
+```
+
+## Scope and Limitations
+
+- This is a portfolio and research implementation, not legal or compliance advice.
+- The corpus contains two policy documents and is not automatically synchronized with
+  later BNM revisions.
+- The validator checks citation IDs and response structure; it does not prove every
+  generated claim is semantically entailed by its cited text.
+- Evaluation sets are intentionally small and need independent domain-expert review,
+  broader adversarial coverage, latency testing, and monitoring before production use.
+- The local API has no authentication, authorization, rate limiting, audit trail, or
+  tenant isolation.
+- Source PDFs and generated indexes are excluded from Git because of size and source
+  distribution considerations.
+
+The original four-week delivery plan is retained in
+[implementation_plan.md](implementation_plan.md).
+
+## License
+
+Code is available under the [MIT License](LICENSE). Regulatory source documents remain
+subject to their publishers' terms and are not included in this repository.
