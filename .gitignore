@@ -28,6 +28,9 @@ data/processed/*
 # Local services
 qdrant_storage/
 
+# Manim render intermediates
+assets/linkedin/media/
+
 # OS/editor
 .DS_Store
 Thumbs.db

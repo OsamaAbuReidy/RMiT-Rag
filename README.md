@@ -12,6 +12,8 @@ The project demonstrates the full path from irregular regulatory PDFs to grounde
 cited answers: document-specific parsing, clause-aware chunking, hybrid retrieval,
 cross-encoder reranking, Gemini generation, validation, evaluation, and a small web UI.
 
+![BNM compliance assistant project overview](assets/linkedin/bnm-rag-cover.png)
+
 ## Results
 
 Latest local evaluation on the committed smoke sets:
